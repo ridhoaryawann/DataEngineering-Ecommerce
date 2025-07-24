@@ -102,22 +102,6 @@ Ensures that scattered raw files are reliably ingested, cleaned, and normalized 
 
 Automates the **extraction** of data from PostgreSQL and the **loading** into **Google Cloud Storage** and **BigQuery**, powering cloud-based analytics and dashboards.
 
-#### 🧩 Key Task Flow
-
-```
-[Extract from PostgreSQL] 
-     ↓
-[Save CSV locally]
-     ↓
-[Upload to GCS bucket]
-     ↓
-[Load to BigQuery staging]
-     ↓
-[Transform to marts with SQL]
-     ↓
-[Slack alert (success/failure)]
-```
-
 #### 🔍 Task Roles & Advantages
 
 | Task | Description | Advantages |
