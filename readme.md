@@ -1,6 +1,6 @@
 # 🛠️ Data Engineering for E-commerce Decision Support
 
-![headers](img/header.png)
+![headers](image/header.png)
 
 ## 📌 Overview
 
@@ -30,7 +30,7 @@ As a **data engineer**, I designed and implemented this pipeline to ensure:
 
 ## 2. 📂 About the Data
 
-![E-Commerce Data Overview](img/bg2.png)
+![E-Commerce Data Overview](image/bg2.png)
 
 All raw datasets are stored in the `datas/` directory and derived from the Olist e-commerce dataset. The total data volume used in this project contains over **500,000 rows**, covering multiple years of e-commerce transactions in Brazil.
 
