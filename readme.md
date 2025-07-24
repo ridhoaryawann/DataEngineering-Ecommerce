@@ -1,8 +1,12 @@
 # 🛠️ Data Engineering for E-commerce Decision Support
 
+![headers](img/header.png)
+
 ## 📌 Overview
 
 This project implements a complete **data engineering pipeline** that supports business intelligence and decision-making for **Olist**, a Brazilian e-commerce marketplace. The pipeline extracts **raw transactional data**, cleans and structures it in **PostgreSQL**, stages it in **Google Cloud Storage**, and transforms it into analytics-ready **BigQuery marts**—all orchestrated via **Apache Airflow (Docker)** with integrated **Slack alerting**.
+
+> 💡 **Shoutout to [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)** for making their e-commerce dataset freely available on Kaggle. This rich dataset forms the foundation of this project and enables practical learning for the data community.
 
 ---
 
@@ -25,6 +29,8 @@ As a **data engineer**, I designed and implemented this pipeline to ensure:
 ---
 
 ## 2. 📂 About the Data
+
+![E-Commerce Data Overview](img/bg2.png)
 
 All raw datasets are stored in the `datas/` directory and derived from the Olist e-commerce dataset. The total data volume used in this project contains over **500,000 rows**, covering multiple years of e-commerce transactions in Brazil.
 
@@ -163,7 +169,7 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 
 ### 📥 6.3 Prepare & Run
 
-1. Place all raw CSVs in `datas/` directory
+1. Place all raw CSVs in `datas/` directory. Download data in [here](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)
 2. In Airflow UI:
    - Run `raw_to_postgres` DAG
    - Run `pg_to_gcp` DAG
@@ -178,7 +184,6 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 | ------------------ | ---------------------------------------------------------------------------- |
 | 📦 Data Expansion  | Add more datasets to uncover broader and deeper business insights.           |
 | ☁️ Cloud Readiness | Migrate the pipeline to a **Cloud VM or Composer** for production stability. |
-| 🔍 Data Validation | Integrate validation checks at each stage to ensure quality and trust.       |
 
 ---
 
