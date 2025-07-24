@@ -424,6 +424,7 @@ with DAG(
             gcs_file_name   = 'customer',
             table_name      = 'stg_customer',
             schema_fields   = customer_schema,
+            partition_field = 'first_purchase_date',
             cluster_fields  = ["customer_state"]            
         ),
         location = "US"
