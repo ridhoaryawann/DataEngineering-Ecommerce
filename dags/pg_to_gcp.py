@@ -867,7 +867,7 @@ with DAG(
     DIM_SELLER_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.dim_seller`"
     mart_customer_character = BigQueryInsertJobOperator(
         task_id='create_mart_customer_character',
-        trigger_rule='always'
+        trigger_rule='always',
         configuration={
             "query": {
                 "query": f"""
