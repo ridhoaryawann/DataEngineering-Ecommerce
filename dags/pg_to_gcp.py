@@ -805,7 +805,7 @@ with DAG(
             }
         },
         location="US", 
-        trigger_rule='none_failed' 
+        trigger_rule='always' 
     ) 
 
     # 2. Product Performances
@@ -818,43 +818,44 @@ with DAG(
     DIM_PRODUCT_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.dim_product`"
     DIM_SELLER_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.dim_seller`"
     mart_product_performance = BigQueryInsertJobOperator(
-    task_id='create_mart_product_performances',
-    configuration={
-        "query": {
-            "query": f"""
-                CREATE OR REPLACE TABLE {MART_PROD_PERFORMANCE_TABLE_FULL_PATH} 
-                PARTITION BY order_date
-                CLUSTER BY product_category_name_english AS
-                SELECT 
-                    p.product_id,
-                    p.product_category_name_english,
-                    COUNT(DISTINCT s.seller_id) AS seller_count,
-                    COUNT(DISTINCT c.customer_unique_id) AS unique_customer_count,
-                    COUNT(oi.order_item_id) AS total_units_sold,
-                    COUNT(DISTINCT oi.order_id) AS total_orders,
-                    SUM(oi.price) AS total_revenue,
-                    ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(oi.order_item_id)), 2) AS avg_revenue_per_unit,
-                    ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(DISTINCT c.customer_unique_id)), 2) AS avg_revenue_per_customer,
-                    SUM(oi.freight_value) AS total_shipping_cost,
-                    AVG(oi.freight_value) AS avg_shipping_cost,
-                    AVG(oi.price) AS avg_price,
-                    MIN(oi.price) AS min_price,
-                    MAX(oi.price) AS max_price,
-                    SAFE_DIVIDE(COUNT(oi.order_item_id) * 1.0, COUNT(DISTINCT oi.order_id)) AS avg_items_per_order,
-                    DATE(o.order_purchase_timestamp) AS order_date
-                FROM {FACT_ORDER_ITEM_PATH} oi
-                LEFT JOIN {FACT_ORDER_PATH} o ON oi.order_id = o.order_id
-                LEFT JOIN {DIM_CUSTOMER_PATH} c ON o.customer_id = c.customer_id
-                LEFT JOIN {DIM_PRODUCT_PATH} p ON oi.product_id = p.product_id
-                LEFT JOIN {DIM_SELLER_PATH} s ON oi.seller_id = s.seller_id
-                WHERE o.order_status = 'delivered'
-                GROUP BY p.product_id, p.product_category_name_english, DATE(o.order_purchase_timestamp)
-            """,
-            "useLegacySql": False
-        }
-    },
-    location='US',
-    )
+        task_id='create_mart_product_performances',
+        trigger_rule='always',
+        configuration={
+            "query": {
+                "query": f"""
+                    CREATE OR REPLACE TABLE {MART_PROD_PERFORMANCE_TABLE_FULL_PATH} 
+                    PARTITION BY order_date
+                    CLUSTER BY product_category_name_english AS
+                    SELECT 
+                        p.product_id,
+                        p.product_category_name_english,
+                        COUNT(DISTINCT s.seller_id) AS seller_count,
+                        COUNT(DISTINCT c.customer_unique_id) AS unique_customer_count,
+                        COUNT(oi.order_item_id) AS total_units_sold,
+                        COUNT(DISTINCT oi.order_id) AS total_orders,
+                        SUM(oi.price) AS total_revenue,
+                        ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(oi.order_item_id)), 2) AS avg_revenue_per_unit,
+                        ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(DISTINCT c.customer_unique_id)), 2) AS avg_revenue_per_customer,
+                        SUM(oi.freight_value) AS total_shipping_cost,
+                        AVG(oi.freight_value) AS avg_shipping_cost,
+                        AVG(oi.price) AS avg_price,
+                        MIN(oi.price) AS min_price,
+                        MAX(oi.price) AS max_price,
+                        SAFE_DIVIDE(COUNT(oi.order_item_id) * 1.0, COUNT(DISTINCT oi.order_id)) AS avg_items_per_order,
+                        DATE(o.order_purchase_timestamp) AS order_date
+                    FROM {FACT_ORDER_ITEM_PATH} oi
+                    LEFT JOIN {FACT_ORDER_PATH} o ON oi.order_id = o.order_id
+                    LEFT JOIN {DIM_CUSTOMER_PATH} c ON o.customer_id = c.customer_id
+                    LEFT JOIN {DIM_PRODUCT_PATH} p ON oi.product_id = p.product_id
+                    LEFT JOIN {DIM_SELLER_PATH} s ON oi.seller_id = s.seller_id
+                    WHERE o.order_status = 'delivered'
+                    GROUP BY p.product_id, p.product_category_name_english, DATE(o.order_purchase_timestamp)
+                """,
+                "useLegacySql": False
+            }
+        },
+        location='US',
+        )
 
     # 3. Mart Customer Characteristics
     MART_CC_TABLE_FULL_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.mart_customer_characteristics`"
@@ -865,70 +866,72 @@ with DAG(
     DIM_PRODUCT_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.dim_product`"
     DIM_SELLER_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.dim_seller`"
     mart_customer_character = BigQueryInsertJobOperator(
-    task_id='create_mart_customer_character',
-    configuration={
-        "query": {
-            "query": f"""
-                CREATE OR REPLACE TABLE {MART_CC_TABLE_FULL_PATH} 
-                PARTITION BY order_month
-                CLUSTER BY customer_state AS
-                SELECT
-                    c.customer_unique_id,
-                    c.customer_city,
-                    c.customer_state,
-                    DATE_TRUNC(DATE(o.order_purchase_timestamp), MONTH) AS order_month,
-                    COUNT(DISTINCT o.order_id) AS total_orders,
-                    COUNT(oi.order_item_id) AS total_items_bought,
-                    SUM(oi.price) AS total_revenue,
-                    ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(DISTINCT o.order_id)), 2) AS avg_revenue_per_order,
-                    MIN(o.order_purchase_timestamp) AS first_purchase_date,
-                    MAX(o.order_purchase_timestamp) AS last_purchase_date
-                FROM {DIM_CUSTOMER_PATH} c
-                LEFT JOIN {FACT_ORDER_PATH} o ON c.customer_id = o.customer_id
-                LEFT JOIN {FACT_ORDER_ITEM_PATH} oi ON o.order_id = oi.order_id
-                WHERE o.order_status = 'delivered'
-                    AND o.order_purchase_timestamp IS NOT NULL
-                GROUP BY
-                    c.customer_unique_id,
-                    c.customer_city,
-                    c.customer_state,
-                    order_month 
-            """,
-            "useLegacySql": False,
-        }
-    },
-    location="US"
-    )
+        task_id='create_mart_customer_character',
+        trigger_rule='always'
+        configuration={
+            "query": {
+                "query": f"""
+                    CREATE OR REPLACE TABLE {MART_CC_TABLE_FULL_PATH} 
+                    PARTITION BY order_month
+                    CLUSTER BY customer_state AS
+                    SELECT
+                        c.customer_unique_id,
+                        c.customer_city,
+                        c.customer_state,
+                        DATE_TRUNC(DATE(o.order_purchase_timestamp), MONTH) AS order_month,
+                        COUNT(DISTINCT o.order_id) AS total_orders,
+                        COUNT(oi.order_item_id) AS total_items_bought,
+                        SUM(oi.price) AS total_revenue,
+                        ROUND(SAFE_DIVIDE(SUM(oi.price), COUNT(DISTINCT o.order_id)), 2) AS avg_revenue_per_order,
+                        MIN(o.order_purchase_timestamp) AS first_purchase_date,
+                        MAX(o.order_purchase_timestamp) AS last_purchase_date
+                    FROM {DIM_CUSTOMER_PATH} c
+                    LEFT JOIN {FACT_ORDER_PATH} o ON c.customer_id = o.customer_id
+                    LEFT JOIN {FACT_ORDER_ITEM_PATH} oi ON o.order_id = oi.order_id
+                    WHERE o.order_status = 'delivered'
+                        AND o.order_purchase_timestamp IS NOT NULL
+                    GROUP BY
+                        c.customer_unique_id,
+                        c.customer_city,
+                        c.customer_state,
+                        order_month 
+                """,
+                "useLegacySql": False,
+            }
+        },
+        location="US"
+        )
 
     # 4. Mart Order FOP
     MART_FOP_TABLE_FULL_PATH = f"`{PROJECT_ID}.{BQ_DATASET}.mart_lost_revenue`"
 
     mart_order_fop = BigQueryInsertJobOperator(
-    task_id='create_mart_order_fop',
-    configuration={
-        "query": {
-            "query": f"""
-                CREATE OR REPLACE TABLE {MART_FOP_TABLE_FULL_PATH} 
-                PARTITION BY order_month
-                CLUSTER BY order_status AS
-                SELECT
-                    DATE_TRUNC(DATE(o.order_purchase_timestamp), MONTH) AS order_month,
-                    o.order_status,
-                    COUNT(o.order_id) AS total_fop_orders,
-                    COUNT(DISTINCT o.order_id) AS total_unique_fop_orders,
-                    SUM(i.order_item_id) AS total_fop_items,
-                    SUM(i.price) AS total_est_lost_revenue,
-                    SUM(i.freight_value) AS total_est_lost_shipping_cost
-                FROM {FACT_ORDER_FOP_PATH} o
-                LEFT JOIN {FACT_ORDER_ITEM_PATH} i
-                ON o.order_id = i.order_id
-                GROUP BY order_month, order_status
-            """,
-            "useLegacySql": False,
-        }
-    },
-    location="US"
-    )
+        task_id='create_mart_order_fop',
+        trigger_rule='always',
+        configuration={
+            "query": {
+                "query": f"""
+                    CREATE OR REPLACE TABLE {MART_FOP_TABLE_FULL_PATH} 
+                    PARTITION BY order_month
+                    CLUSTER BY order_status AS
+                    SELECT
+                        DATE_TRUNC(DATE(o.order_purchase_timestamp), MONTH) AS order_month,
+                        o.order_status,
+                        COUNT(o.order_id) AS total_fop_orders,
+                        COUNT(DISTINCT o.order_id) AS total_unique_fop_orders,
+                        SUM(i.order_item_id) AS total_fop_items,
+                        SUM(i.price) AS total_est_lost_revenue,
+                        SUM(i.freight_value) AS total_est_lost_shipping_cost
+                    FROM {FACT_ORDER_FOP_PATH} o
+                    LEFT JOIN {FACT_ORDER_ITEM_PATH} i
+                    ON o.order_id = i.order_id
+                    GROUP BY order_month, order_status
+                """,
+                "useLegacySql": False,
+            }
+        },
+        location="US"
+        )
 
   
 
