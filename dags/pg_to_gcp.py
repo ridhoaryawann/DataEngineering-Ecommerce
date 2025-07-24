@@ -724,7 +724,7 @@ with DAG(
                     -- This statement creates or completely overwrites the table 'mart_user_activity'
                     CREATE OR REPLACE TABLE {MART_TRANSACTIONS_TABLE_FULL_PATH}
                     PARTITION BY DATE(order_purchase_timestamp)
-                    CLUSTER BY product_category_name_english, customer_state, seller_state AS
+                    CLUSTER BY customer_state, seller_state, product_category_name_english AS
                     SELECT 
                         oi.order_id,
                         p.product_category_name_english, 
@@ -782,10 +782,12 @@ with DAG(
     configuration={
         "query": {
             "query": f"""
-                CREATE OR REPLACE TABLE {MART_PROD_PERFORMANCE_TABLE_FULL_PATH} AS
+                CREATE OR REPLACE TABLE {MART_PROD_PERFORMANCE_TABLE_FULL_PATH} 
+                PARTITION BY order_date
+                CLUSTER BY product_category_name_english AS
                 SELECT 
                     p.product_id,
-                    p.product_category_name,
+                    p.product_category_name_english,
                     COUNT(DISTINCT s.seller_id) AS seller_count,
                     COUNT(DISTINCT c.customer_unique_id) AS unique_customer_count,
                     COUNT(oi.order_item_id) AS total_units_sold,
@@ -806,8 +808,7 @@ with DAG(
                 LEFT JOIN {DIM_PRODUCT_PATH} p ON oi.product_id = p.product_id
                 LEFT JOIN {DIM_SELLER_PATH} s ON oi.seller_id = s.seller_id
                 WHERE o.order_status = 'delivered'
-                GROUP BY p.product_id, p.product_category_name, DATE(o.order_purchase_timestamp)
-                ORDER BY order_date ASC
+                GROUP BY p.product_id, p.product_category_name_english, DATE(o.order_purchase_timestamp)
             """,
             "useLegacySql": False
         }
@@ -828,9 +829,10 @@ with DAG(
     configuration={
         "query": {
             "query": f"""
-                CREATE OR REPLACE TABLE {MART_CC_TABLE_FULL_PATH} AS
+                CREATE OR REPLACE TABLE {MART_CC_TABLE_FULL_PATH} 
+                PARTITION BY order_month
+                CLUSTER BY customer_state AS
                 SELECT
-                    c.customer_id,
                     c.customer_unique_id,
                     c.customer_city,
                     c.customer_state,
@@ -845,13 +847,12 @@ with DAG(
                 LEFT JOIN {FACT_ORDER_PATH} o ON c.customer_id = o.customer_id
                 LEFT JOIN {FACT_ORDER_ITEM_PATH} oi ON o.order_id = oi.order_id
                 WHERE o.order_status = 'delivered'
+                    AND o.order_purchase_timestamp IS NOT NULL
                 GROUP BY
-                    c.customer_id,
                     c.customer_unique_id,
                     c.customer_city,
                     c.customer_state,
-                    order_month
-                ORDER BY order_month
+                    order_month 
             """,
             "useLegacySql": False,
         }
@@ -867,11 +868,13 @@ with DAG(
     configuration={
         "query": {
             "query": f"""
-                CREATE OR REPLACE TABLE {MART_FOP_TABLE_FULL_PATH} AS
+                CREATE OR REPLACE TABLE {MART_FOP_TABLE_FULL_PATH} 
+                PARTITION BY order_month
+                CLUSTER BY order_status AS
                 SELECT
                     DATE_TRUNC(DATE(o.order_purchase_timestamp), MONTH) AS order_month,
                     o.order_status,
-                    COUNT(o.order_id) AS total_fop_orders
+                    COUNT(o.order_id) AS total_fop_orders,
                     COUNT(DISTINCT o.order_id) AS total_unique_fop_orders,
                     SUM(i.order_item_id) AS total_fop_items,
                     SUM(i.price) AS total_est_lost_revenue,
