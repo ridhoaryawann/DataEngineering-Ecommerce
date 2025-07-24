@@ -78,6 +78,7 @@ project-root/
 ## 5. DAGs Breakdown
 
 ### 5.1 `raw_to_postgres.py`
+![raw](image/bq.png)
 
 #### 🎯 Purpose
 
@@ -96,7 +97,8 @@ Ensures that scattered raw files are reliably ingested, cleaned, and normalized 
 
 ---
 
-### 5.2 `pg_to_gcp.py`
+### 5.2 `local_to_staging_to_DimFact_to_mart.py`
+![raw](image/gcs.png)
 
 #### 🎯 Purpose
 
@@ -109,16 +111,17 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 | **Extract** | Queries each entity and exports to CSV | Modular, reusable logic per table |
 | **Upload to GCS** | Stores CSVs in structured paths by entity and date | Centralized backup and easy access |
 | **Load to BigQuery (Staging)** | Uses explicit schemas, with partitioning/clustering | Optimized for cost, performance, and type safety |
+| **Load to BigQuery (Dimension/Fact)** | Appends only new data from staging to final tables using unique keys | Prevents duplication, efficient incremental loading |
 | **Transform to Data Marts** | SQL logic converts staging tables to fact/dimensional marts | Easy to iterate and scale for new insights |
 | **Slack Notification** | Alerts on failure or success | Enables proactive monitoring |
 
 #### ✅ Technical Benefits
 
+- **Incremental-Load Ready**: Structure supports future delta-based ingestion for scalability.
 - **Modular & Testable**: Each table runs independently with reusable functions.
 - **Explicit Schema Handling**: Improves data quality and traceability.
 - **Optimized BigQuery Usage**: Leverages partitioning on timestamps and clustering on high-cardinality fields.
 - **Cloud-Ready**: Easily deployable to Cloud Composer or GCP-native orchestration.
-- **Incremental-Load Ready**: Structure supports future delta-based ingestion for scalability.
 
 ---
 
@@ -166,8 +169,8 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 
 | Area               | Suggestions                                                                  |
 | ------------------ | ---------------------------------------------------------------------------- |
-| 📦 Data Expansion  | Add more datasets to uncover broader and deeper business insights.           |
-| ☁️ Cloud Readiness | Migrate the pipeline to a **Cloud VM or Composer** for production stability. |
+| 📦 Data Expansion  | Crawl more datasets to uncover broader and deeper business insights.        |
+| ☁️ Cloud Readiness | Use kubernetes or composer for production stability. |
 
 ---
 

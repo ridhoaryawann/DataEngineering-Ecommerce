@@ -207,7 +207,7 @@ def insert_data_pgdb(conn_id, file_name, table_name, transform_func):
 # ------------ DAG SET UP --------------------
 default_args    = {
     'owner'             : 'airflow',
-    'start_date'        : datetime(2025,7,18),
+    'start_date'        : datetime(2025,6,10,3),
     'retries'           : 1,
     'retry_delay'       : timedelta(seconds=10)
 }

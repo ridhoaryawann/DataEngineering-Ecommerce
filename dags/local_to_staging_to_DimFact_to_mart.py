@@ -110,7 +110,7 @@ def extract_to_bq_stg(
         schema_fields,
         partition_field = None,
         cluster_fields = None,
-        write_disposition = "WRITE_TRUNCATE"
+        write_disposition = "WRITE_APPEND"
 ):
     config      = {
         "load"  : {
@@ -141,7 +141,7 @@ def extract_to_bq_stg(
         }
 
     return config
-
+# ----------------------------------------------------------
 # 2. GSC to BQ_staging for dimension
 def extract_to_bq_stgd(
         gcs_file_name,
@@ -180,7 +180,7 @@ def extract_to_bq_stgd(
         }
 
     return config
-
+# ----------------------------------------------------------
 # 2.B. GCS to BQ_staging csv
 def extract_to_bq_stg_csv(
         gcs_file_name,
@@ -188,7 +188,7 @@ def extract_to_bq_stg_csv(
         schema_fields,
         partition_field=None,
         cluster_fields=None,
-        write_disposition="WRITE_TRUNCATE"
+        write_disposition="WRITE_APPEND"
 ):
     config = {
         "load": {
@@ -256,14 +256,14 @@ def task_fail_slack_alert(context):
 
 default_args    = {
     'owner'         : 'airflow',
-    'start_date'    : datetime(2025,6,10),
+    'start_date'    : datetime(2025,6,10,4),
     'retries'       : 2,
     'retry_delay'   : timedelta(seconds=10),
     'on_failure_callback': task_fail_slack_alert
 }
 
 with DAG(
-    dag_id              = 'pg_to_gcs',
+    dag_id              = 'DAG_local_to_staging_to_DimFact_to_mart',
     default_args        = default_args,
     schedule_interval   = '@daily',
     catchup             = True
@@ -407,7 +407,7 @@ with DAG(
         op_kwargs       = {'table':'customer',
                            'transform': transform_customer_df}
     )
-
+    # -------------------------------------------------------------------
     # 2. Customer Load to Staging BQ
     customer_schema = [
     {"name": "customer_id", "type": "STRING", "mode": "REQUIRED"},
@@ -429,7 +429,7 @@ with DAG(
         ),
         location = "US"
     )
-
+    # ---------------------------------------------------------------
     # 3. Customer Make Dim BQ
     cust_create_dim = BigQueryInsertJobOperator(
         task_id         = 'customer_create_dim',
@@ -661,7 +661,7 @@ with DAG(
 
     item_to_gcs = PythonOperator(
         task_id='order_item_to_gcs',
-        python_callable=extract_to_gcs_inc_csv,  # 👉 use CSV version
+        python_callable=extract_to_gcs_inc_csv, 
         op_kwargs={
             'table': 'order_item',
             'col_inc': 'order_purchase_timestamp',
