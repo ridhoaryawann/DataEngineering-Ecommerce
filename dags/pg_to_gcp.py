@@ -40,10 +40,10 @@ def extract_to_gcs(ds, table, transform = None, **kwargs):
     folder_path = os.path.join(EXPORT_DIR, table)
     os.makedirs(name=folder_path, exist_ok=True)
 
-    file_path   = os.path.join(folder_path, f"{table}_{ds}.parquet")
+    file_path   = os.path.join(folder_path, f"{table}.parquet")
     df.to_parquet(file_path, index=False)
 
-    gcs_path    = f"{GCS_PREFIX}/{table}/{table}_{ds}.parquet"
+    gcs_path    = f"{GCS_PREFIX}/{table}/{table}.parquet"
     gcs_hook    = GCSHook(gcp_conn_id = 'google_cloud_default')
     gcs_hook.upload(
         bucket_name     = BUCKET_NAME,
@@ -142,6 +142,45 @@ def extract_to_bq_stg(
 
     return config
 
+# 2. GSC to BQ_staging for dimension
+def extract_to_bq_stgd(
+        gcs_file_name,
+        table_name,
+        schema_fields,
+        partition_field = None,
+        cluster_fields = None,
+        write_disposition = "WRITE_TRUNCATE"
+):
+    config      = {
+        "load"  : {
+            "destinationTable" : {
+                "projectId"     : PROJECT_ID,
+                "datasetId"     : BQ_DATASET,
+                "tableId"       : table_name,
+            },
+            "sourceUris": [
+                f"gs://{BUCKET_NAME}/{GCS_PREFIX}/{gcs_file_name}/{gcs_file_name}.parquet"
+            ],
+            "sourceFormat"      : "PARQUET",
+            "autodetect"        : False,
+            "schema"            : {"fields" : schema_fields},
+            "writeDisposition"  : write_disposition
+        }
+    }
+
+    if partition_field:
+        config["load"]["timePartitioning"] = {
+            "type"  : "DAY",
+            "field" : partition_field
+        }
+
+    if cluster_fields:
+        config["load"]["clustering"] = {
+            "fields" : cluster_fields
+        }
+
+    return config
+
 # 2.B. GCS to BQ_staging csv
 def extract_to_bq_stg_csv(
         gcs_file_name,
@@ -217,8 +256,8 @@ def task_fail_slack_alert(context):
 
 default_args    = {
     'owner'         : 'airflow',
-    'start_date'    : datetime(2025,7,10),
-    'retries'       : 1,
+    'start_date'    : datetime(2025,6,10),
+    'retries'       : 2,
     'retry_delay'   : timedelta(seconds=10),
     'on_failure_callback': task_fail_slack_alert
 }
@@ -227,7 +266,7 @@ with DAG(
     dag_id              = 'pg_to_gcs',
     default_args        = default_args,
     schedule_interval   = '@daily',
-    catchup             = False
+    catchup             = True
 ) as dag:
     
     # ----------------------------------- A. Seller Table -----------------------------------
@@ -249,7 +288,7 @@ with DAG(
 
     seller_to_stg = BigQueryInsertJobOperator(
         task_id         = 'seller_to_bq_staging',
-        configuration   = extract_to_bq_stg(
+        configuration   = extract_to_bq_stgd(
             gcs_file_name   = 'seller',
             table_name      = 'stg_seller',
             schema_fields   = seller_schema,
@@ -310,7 +349,7 @@ with DAG(
 
     prod_to_stg = BigQueryInsertJobOperator(
         task_id         = 'product_to_bq_staging',
-        configuration   = extract_to_bq_stg(
+        configuration   = extract_to_bq_stgd(
             gcs_file_name   = 'product',
             table_name      = 'stg_product',
             schema_fields   = prod_schema,
@@ -381,11 +420,10 @@ with DAG(
 
     cust_to_stg = BigQueryInsertJobOperator(
         task_id         = 'customer_to_bq_staging',
-        configuration   = extract_to_bq_stg(
+        configuration   = extract_to_bq_stgd(
             gcs_file_name   = 'customer',
             table_name      = 'stg_customer',
             schema_fields   = customer_schema,
-            partition_field = 'first_purchase_date',
             cluster_fields  = ["customer_state"]            
         ),
         location = "US"
@@ -539,6 +577,7 @@ with DAG(
     # 1. Order_FOP to GCS
     order_fop_to_gcs = PythonOperator(
         task_id         = 'order_fop_to_gcs',
+        trigger_rule    = 'always',
         python_callable = extract_to_gcs_inc,
         op_kwargs       = {'table': 'order_fop',
                            'col_inc': 'order_purchase_timestamp',
@@ -548,7 +587,7 @@ with DAG(
     # 2. Order_FOP Load to Staging BQ
     order_fop_to_stg = BigQueryInsertJobOperator(
         task_id         = 'order_fop_to_bq_staging',
-        trigger_rule    = 'none_failed',
+        trigger_rule    = 'always',
         configuration   = extract_to_bq_stg(
             gcs_file_name   = 'order_fop',
             table_name      = 'stg_order_fop',
@@ -563,7 +602,7 @@ with DAG(
     # 3. Order_FOP Make Fact BQ
     order_fop_create_fact    = BigQueryInsertJobOperator(
         task_id             = 'order_fop_create_fact',
-        trigger_rule    = 'none_failed',
+        trigger_rule    = 'always',
         configuration       = {
             "query"         : {
                 "query"     : """
@@ -591,7 +630,7 @@ with DAG(
     # 4. Order_FOP Load to Fact BQ
     order_fop_to_fact    = BigQueryInsertJobOperator(
         task_id             = 'orders_fop_to_fact',
-        trigger_rule    = 'none_failed',
+        trigger_rule    = 'always',
         configuration       = {
             "query"         : {
                 "query"     : """
@@ -645,7 +684,7 @@ with DAG(
     item_to_stg = BigQueryInsertJobOperator(
         task_id='order_item_to_bq_staging',
         trigger_rule    = 'none_failed',
-        configuration=extract_to_bq_stg_csv(  # 👉 use CSV version
+        configuration=extract_to_bq_stg_csv(  
             gcs_file_name='order_item',
             table_name='stg_order_item',
             schema_fields=order_item_schema,
@@ -883,7 +922,6 @@ with DAG(
                 LEFT JOIN {FACT_ORDER_ITEM_PATH} i
                 ON o.order_id = i.order_id
                 GROUP BY order_month, order_status
-                ORDER BY order_month ASC
             """,
             "useLegacySql": False,
         }
