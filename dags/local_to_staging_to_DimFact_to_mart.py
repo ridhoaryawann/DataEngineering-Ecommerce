@@ -9,6 +9,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 import logging
 
+from airflow.sensors.external_task import ExternalTaskSensor
+from airflow.utils.state import DagRunState
+
 from datetime import datetime, timedelta
 import pandas as pd
 import os 
@@ -141,7 +144,7 @@ def extract_to_bq_stg(
         }
 
     return config
-# ----------------------------------------------------------
+
 # 2. GSC to BQ_staging for dimension
 def extract_to_bq_stgd(
         gcs_file_name,
@@ -180,7 +183,7 @@ def extract_to_bq_stgd(
         }
 
     return config
-# ----------------------------------------------------------
+
 # 2.B. GCS to BQ_staging csv
 def extract_to_bq_stg_csv(
         gcs_file_name,
@@ -269,6 +272,18 @@ with DAG(
     catchup             = True
 ) as dag:
     
+    # ----------------------------------- External Task   -----------------------------------
+    check_dag_rawtopg   = ExternalTaskSensor(
+         task_id            = 'wait_for_dag_raw_to_postgre_completion',
+         external_dag_id    = 'raws_to_postgres',
+         execution_delta    = timedelta(hours=-1),
+         allowed_states     = [DagRunState.SUCCESS, DagRunState.FAILED],
+         failed_states      = [],
+         mode               = 'poke',
+         poke_interval      = 300,
+         timeout            = 60 * 30
+    )
+
     # ----------------------------------- A. Seller Table -----------------------------------
 
     # 1. Seller Extract to GCS Task
@@ -948,20 +963,13 @@ All tasks completed successfully.
 
 
     # --- Steps ---
-    dim_and_fact_tasks = [
-    seller_to_dim,
-    prod_to_dim,
-    cust_to_dim,
-    order_to_fact,
-    order_fop_to_fact,
-    item_to_fact
-]
+    mart_tasks = [mart_user_activity, mart_order_fop, mart_customer_character, mart_product_performance]
 
-    seller_to_gcs   >> seller_to_stg    >> seller_to_dim
-    prod_to_gcs     >> prod_to_stg      >> prod_to_dim
-    cust_to_gcs     >> cust_to_stg      >> cust_create_dim      >> cust_to_dim
-    order_to_gcs    >> order_to_stg     >> order_create_fact    >> order_to_fact
-    order_fop_to_gcs>> order_fop_to_stg >> order_fop_create_fact>> order_fop_to_fact
-    item_to_gcs     >> item_to_stg      >> item_create_fact     >> item_to_fact
+    check_dag_rawtopg >> seller_to_gcs   >> seller_to_stg    >> seller_to_dim        >> mart_tasks
+    check_dag_rawtopg >> prod_to_gcs     >> prod_to_stg      >> prod_to_dim          >> mart_tasks
+    check_dag_rawtopg >> cust_to_gcs     >> cust_to_stg      >> cust_create_dim      >> cust_to_dim         >> mart_tasks
+    check_dag_rawtopg >> order_to_gcs    >> order_to_stg     >> order_create_fact    >> order_to_fact       >> mart_tasks
+    check_dag_rawtopg >> order_fop_to_gcs>> order_fop_to_stg >> order_fop_create_fact>> order_fop_to_fact   >> mart_tasks
+    check_dag_rawtopg >> item_to_gcs     >> item_to_stg      >> item_create_fact     >> item_to_fact        >> mart_tasks
 
-    dim_and_fact_tasks >> mart_user_activity >> mart_order_fop >> mart_customer_character >> mart_product_performance >> slack_success
+    mart_tasks >> slack_success
