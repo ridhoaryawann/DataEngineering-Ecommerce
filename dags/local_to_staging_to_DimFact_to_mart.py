@@ -9,9 +9,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 import logging
 
-from airflow.sensors.external_task import ExternalTaskSensor
-from airflow.utils.state import DagRunState
-
 from datetime import datetime, timedelta
 import pandas as pd
 import os 
@@ -271,18 +268,6 @@ with DAG(
     schedule_interval   = '@daily',
     catchup             = True
 ) as dag:
-    
-    # ----------------------------------- External Task   -----------------------------------
-    check_dag_rawtopg   = ExternalTaskSensor(
-         task_id            = 'wait_for_dag_raw_to_postgre_completion',
-         external_dag_id    = 'raws_to_postgres',
-         execution_delta    = timedelta(hours=-1),
-         allowed_states     = [DagRunState.SUCCESS, DagRunState.FAILED],
-         failed_states      = [],
-         mode               = 'poke',
-         poke_interval      = 300,
-         timeout            = 60 * 30
-    )
 
     # ----------------------------------- A. Seller Table -----------------------------------
 
@@ -965,11 +950,11 @@ All tasks completed successfully.
     # --- Steps ---
     mart_tasks = [mart_user_activity, mart_order_fop, mart_customer_character, mart_product_performance]
 
-    check_dag_rawtopg >> seller_to_gcs   >> seller_to_stg    >> seller_to_dim        >> mart_tasks
-    check_dag_rawtopg >> prod_to_gcs     >> prod_to_stg      >> prod_to_dim          >> mart_tasks
-    check_dag_rawtopg >> cust_to_gcs     >> cust_to_stg      >> cust_create_dim      >> cust_to_dim         >> mart_tasks
-    check_dag_rawtopg >> order_to_gcs    >> order_to_stg     >> order_create_fact    >> order_to_fact       >> mart_tasks
-    check_dag_rawtopg >> order_fop_to_gcs>> order_fop_to_stg >> order_fop_create_fact>> order_fop_to_fact   >> mart_tasks
-    check_dag_rawtopg >> item_to_gcs     >> item_to_stg      >> item_create_fact     >> item_to_fact        >> mart_tasks
+    seller_to_gcs   >> seller_to_stg    >> seller_to_dim        >> mart_tasks
+    prod_to_gcs     >> prod_to_stg      >> prod_to_dim          >> mart_tasks
+    cust_to_gcs     >> cust_to_stg      >> cust_create_dim      >> cust_to_dim         >> mart_tasks
+    order_to_gcs    >> order_to_stg     >> order_create_fact    >> order_to_fact       >> mart_tasks
+    order_fop_to_gcs>> order_fop_to_stg >> order_fop_create_fact>> order_fop_to_fact   >> mart_tasks
+    item_to_gcs     >> item_to_stg      >> item_create_fact     >> item_to_fact        >> mart_tasks
 
     mart_tasks >> slack_success

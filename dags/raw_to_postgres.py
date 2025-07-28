@@ -15,7 +15,7 @@ data_path       = "/opt/airflow/datas"
 # A. Function to create schemas postgres
 def create_schema(conn_id):
     schema_name         = "ecommerce"
-    create_schema_sql   = f"CREATE SCHEMA IF NOT EXISTS {schema_name}"
+    create_schema_sql   = f"DROP SCHEMA IF EXISTS {schema_name} CASCADE; CREATE SCHEMA IF NOT EXISTS {schema_name}"
 
     try:
         hook    = PostgresHook(postgres_conn_id = conn_id)
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS {schema_name}.order_item(
 # B.4. Customer 
 create_customer_pgdb = f"""
 CREATE TABLE IF NOT EXISTS {schema_name}.customer (
-    customer_id VARCHAR PRIMARY KEY,
+    customer_id VARCHAR,
     customer_unique_id VARCHAR,
     customer_zip_code_prefix INTEGER ,
     customer_city VARCHAR(100),
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS {schema_name}.customer (
 # B.5. Product
 create_product_pgdb = f"""
 CREATE TABLE IF NOT EXISTS {schema_name}.product (
-    product_id VARCHAR PRIMARY KEY,
+    product_id VARCHAR,
     product_category_name VARCHAR ,
     product_category_name_english VARCHAR ,
     product_name_lenght FLOAT,
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS {schema_name}.product (
 # B.6. Seller
 create_seller_pgdb = f"""
 CREATE TABLE IF NOT EXISTS {schema_name}.seller (
-    seller_id VARCHAR PRIMARY KEY,
+    seller_id VARCHAR,
     seller_zip_code_prefix INTEGER,
     seller_city VARCHAR(100),
     seller_state VARCHAR(25)

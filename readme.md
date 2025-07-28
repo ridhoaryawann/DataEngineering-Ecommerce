@@ -6,7 +6,9 @@
 
 This project implements a complete **data engineering pipeline** that supports business intelligence and decision-making for **Olist**, a Brazilian e-commerce marketplace. The pipeline extracts **raw transactional data**, cleans and structures it in **PostgreSQL**, stages it in **Google Cloud Storage**, and transforms it into analytics-ready **BigQuery marts**—all orchestrated via **Apache Airflow (Docker)** with integrated **Slack alerting**.
 
-> 💡 **Shoutout to [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)** for making their e-commerce dataset freely available on Kaggle. This rich dataset forms the foundation of this project and enables practical learning for the data community.
+> 💡 **Shoutout to [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)** for making their e-commerce dataset freely available on Kaggle. This rich dataset forms the foundation of this project and enables practical learning for the data community. 
+
+> 💡 Due to project rules and guidelines, kaggle data are transformed before it can be used by this code. **To access the data for this project**, please refers and use data that are provided in this **[drive](https://drive.google.com/drive/folders/1FWw0yPDcemcx8bPpvruSl9l2ulqHu3kc?usp=sharing)**. 
 
 ---
 
@@ -25,6 +27,9 @@ As a **data engineer**, I designed and implemented this pipeline to ensure:
 - What is the sales and operational performance of each product, which products category drive the most revenue, and how does pricing influence performance??
 - Who are our customers, what are their key characteristics, and how do customer behavior and retention vary across regions and time periods??
 - What are the bottlenecks in our order fulfillment process, and how can we improve delivery speed and reliability?
+
+
+> 💡 Access the **[presentation pdf](https://drive.google.com/drive/folders/1Bu0o6u6IF3oZsIPPehpWQtNfBwIC-tl5?usp=sharing)** and **[the analytical dashboard](https://lookerstudio.google.com/reporting/2c2d4e47-7784-4563-be7b-ec8cac91d4cd)** to gain information about the answer of this key business question 
 
 ---
 
@@ -159,7 +164,7 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 1. Place all raw CSVs in `datas/` directory. Download data in [here](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)
 2. In Airflow UI:
    - Run `raw_to_postgres` DAG
-   - Run `pg_to_gcp` DAG
+   - Run `local_to_staging_to_DimFact_to_mart` DAG
 3. Monitor task success/failure
 4. View Slack notifications (if configured)
 
