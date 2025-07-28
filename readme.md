@@ -4,7 +4,7 @@
 
 ## 📌 Overview
 
-This project implements a complete **data engineering pipeline** that supports business intelligence and decision-making for **Olist**, a Brazilian e-commerce marketplace. The pipeline extracts **raw transactional data**, cleans and structures it in **PostgreSQL**, stages it in **Google Cloud Storage**, and transforms it into analytics-ready **BigQuery marts**—all orchestrated via **Apache Airflow (Docker)** with integrated **Slack alerting**.
+This project implements a complete **data engineering pipeline** that supports business intelligence and decision-making for **Olist**, a Brazilian e-commerce marketplace. The pipeline extracts **raw transactional data**, cleans and structures it in **PostgreSQL**, stages it in **Google Cloud Storage**, and transforms it into analytics-ready **BigQuery marts**, and present it in **Looker studio** with all of theses orchestrated via **Apache Airflow (Docker)** with integrated **Slack alerting**.
 
 > 💡 **Shoutout to [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)** for making their e-commerce dataset freely available on Kaggle. This rich dataset forms the foundation of this project and enables practical learning for the data community. 
 
@@ -161,7 +161,7 @@ Automates the **extraction** of data from PostgreSQL and the **loading** into **
 
 ### 📥 6.3 Prepare & Run
 
-1. Place all raw CSVs in `datas/` directory. Download data in [here](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)
+1. Place all raw CSVs in `datas/` directory. Download data in [here](https://drive.google.com/drive/folders/1FWw0yPDcemcx8bPpvruSl9l2ulqHu3kc?usp=sharing)
 2. In Airflow UI:
    - Run `raw_to_postgres` DAG
    - Run `local_to_staging_to_DimFact_to_mart` DAG
